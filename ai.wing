@@ -824,3 +824,48 @@ the year it happened to be built, and cannot go stale on 1 January.
 
 Confirmed in the served HTML on both the homepage and a policy page: the
 copyright renders with no year, and a grep for `© 20xx` returns nothing.
+
+---
+
+## [1.2.0] — Footer rebuilt to the bestfiberinternet.us layout
+
+Their footer was measured from its rendered DOM rather than eyeballed, because
+the earlier text-only description of it had the column order wrong.
+
+**What they actually do** (footer 1425×1168):
+
+| Element | Position | Type |
+|---|---|---|
+| Brand + blurb | column 1, x=144 | lead block, not a trailing column |
+| SHOP | x=493 | 12.8px / weight 800 / uppercase / 1.536px tracking |
+| LEARN | x=753 | same |
+| TALK TO A HUMAN | x=1012 | heading + large phone + hours + mailing address |
+| OFFER DETAILS & REQUIRED DISCLOSURES | x=144, y=327, full width | labelled heading above the fine print |
+| Policy links | y=1015 | single horizontal row |
+
+**What changed here**
+- The brand lockup moved from column 4 to column 1; grid is now
+  `[1.5fr_1fr_1fr_1.25fr]`.
+- "Order by phone" became **Talk to a human**, with the number at 22px and the
+  mailing address added beneath the hours.
+- The fine print gained the **"Offer details & required disclosures"** heading —
+  previously it was an unlabelled block of grey text.
+- The separate "Policies" grid became a single horizontal row in the bottom bar,
+  matching theirs. All eight fit on one row at desktop.
+- Column headings adopted their weight and tracking: `font-extrabold`,
+  `uppercase`, `tracking-[0.12em]`.
+- Contact email added opposite the copyright.
+
+**Kept deliberately:** the Sonic navy (`#10132B`) rather than their `#001226`.
+The request was for their layout; the palette was sampled from sonic.com and
+stays.
+
+Verified against the reference — headings land at x=514/758/1002 versus their
+493/753/1012, at 13px/800/1.56px versus 12.8px/800/1.536px.
+
+### QA
+- `tsc`, `eslint`, `next build` clean; 12 routes, all static.
+- Desktop 1440: no overflow, 8 policy links on one row, copyright still
+  year-less.
+- Mobile 375: no page or footer overflow, every footer link ≥31px tall, the
+  `tel:` link still carries `data-call-cta`.

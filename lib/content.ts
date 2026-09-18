@@ -465,6 +465,10 @@ export const FOOTER_LEARN: { label: string; href: string }[] = [
   { label: 'Frequently asked questions', href: '/#faq' },
 ];
 
+/** Lead paragraph beside the wordmark in the footer. */
+export const FOOTER_BLURB =
+  'Independent authorized retailer helping U.S. households order Sonic fiber internet and home phone service.';
+
 export const FOOTER_HOURS: string[] = ['Mon–Fri, 8AM–9PM ET', 'Sat–Sun, 9AM–6PM ET'];
 
 /* ========================================================================== *
