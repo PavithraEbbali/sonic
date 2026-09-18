@@ -13,8 +13,6 @@ import { PhoneIcon } from './CallButton';
  * lib/legal.ts lists it here automatically.
  */
 export default function Footer() {
-  const year = new Date().getFullYear();
-
   return (
     <footer className="bg-navy-deep">
       <div className="mx-auto w-full max-w-6xl px-5 py-14 sm:px-6 lg:px-8 lg:py-16">
@@ -151,7 +149,7 @@ export default function Footer() {
         {/* ---------- Bottom bar ---------- */}
         <div className="mt-8 border-t border-white/10 pt-7">
           <p className="text-[0.8125rem] text-white/50">
-            &copy; {year} {SITE.disclosure}
+            &copy; {SITE.disclosure}
           </p>
         </div>
       </div>

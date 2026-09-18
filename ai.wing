@@ -810,3 +810,17 @@ carefully written and matched to this build, but they are not legal advice.
 - All 8 policy URLs return 200 with correct titles; unknown slugs 404.
 - No horizontal overflow on a policy page at 320px; 11 sections render.
 - Footer lists all 8; `tel:` links still carry `data-call-cta`.
+
+---
+
+## [1.1.1] — Year removed from the footer copyright
+
+`© 2026 Independent Authorized Retailer of Sonic.` → `© Independent Authorized
+Retailer of Sonic.`
+
+Dropping it also removed the last `new Date()` call in the tree, so the footer
+is now fully deterministic — a statically prerendered page no longer bakes in
+the year it happened to be built, and cannot go stale on 1 January.
+
+Confirmed in the served HTML on both the homepage and a policy page: the
+copyright renders with no year, and a grep for `© 20xx` returns nothing.
