@@ -32,10 +32,19 @@ export default function SmoothScroll() {
       if (event.defaultPrevented || event.button !== 0) return;
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 
-      const anchor = (event.target as HTMLElement | null)?.closest?.('a[href^="#"]');
+      const anchor = (event.target as HTMLElement | null)?.closest?.('a[href*="#"]');
       if (!(anchor instanceof HTMLAnchorElement)) return;
+      if (anchor.target && anchor.target !== '_self') return;
 
-      const hash = anchor.getAttribute('href');
+      // Navigation links are root-relative ("/#plans") so they also work from a
+      // policy page. Only ease the scroll when the link points at THIS page —
+      // otherwise let the browser navigate and land on the hash normally.
+      const isSamePage =
+        anchor.origin === window.location.origin &&
+        anchor.pathname === window.location.pathname;
+      if (!isSamePage) return;
+
+      const hash = anchor.hash;
       if (!hash || hash === '#') return;
 
       const target = document.querySelector(hash);

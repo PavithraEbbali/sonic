@@ -1,17 +1,16 @@
-import {
-  FOOTER_HOURS,
-  FOOTER_LEARN,
-  FOOTER_LEGAL,
-  FOOTER_SHOP,
-  SITE,
-} from '@/lib/content';
+import Link from 'next/link';
+import { FOOTER_HOURS, FOOTER_LEARN, FOOTER_SHOP, SITE } from '@/lib/content';
+import { LEGAL_PAGES } from '@/lib/legal';
 import SonicWordmark from './SonicWordmark';
 import { PhoneIcon } from './CallButton';
 
 /**
- * Footer: four columns (Shop · Learn · Order by phone · retailer lockup), a
- * full fine-print disclosure block, then a bottom bar carrying the copyright
- * and legal links.
+ * Footer: four columns (Shop · Learn · Order by phone · retailer lockup), then
+ * the policy index, the full fine-print disclosure, and a bottom bar carrying
+ * the copyright.
+ *
+ * The policy links are generated from LEGAL_PAGES, so adding a document to
+ * lib/legal.ts lists it here automatically.
  */
 export default function Footer() {
   const year = new Date().getFullYear();
@@ -24,19 +23,19 @@ export default function Footer() {
           <nav aria-labelledby="footer-shop">
             <h2
               id="footer-shop"
-              className="text-[0.8125rem] sm:text-[0.75rem] font-bold uppercase tracking-[0.16em] text-white"
+              className="text-[0.8125rem] font-bold uppercase tracking-[0.16em] text-white sm:text-[0.75rem]"
             >
               Shop
             </h2>
             <ul className="mt-5 space-y-3">
               {FOOTER_SHOP.map((link) => (
                 <li key={link.label}>
-                  <a
+                  <Link
                     href={link.href}
                     className="inline-block py-1 text-[0.9375rem] text-white/60 transition-colors duration-200 hover:text-sonic-bright"
                   >
                     {link.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -46,19 +45,19 @@ export default function Footer() {
           <nav aria-labelledby="footer-learn">
             <h2
               id="footer-learn"
-              className="text-[0.8125rem] sm:text-[0.75rem] font-bold uppercase tracking-[0.16em] text-white"
+              className="text-[0.8125rem] font-bold uppercase tracking-[0.16em] text-white sm:text-[0.75rem]"
             >
               Learn
             </h2>
             <ul className="mt-5 space-y-3">
               {FOOTER_LEARN.map((link) => (
                 <li key={link.label}>
-                  <a
+                  <Link
                     href={link.href}
-                    className="text-[0.9375rem] text-white/60 transition-colors duration-200 hover:text-sonic-bright"
+                    className="inline-block py-1 text-[0.9375rem] text-white/60 transition-colors duration-200 hover:text-sonic-bright"
                   >
                     {link.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -66,7 +65,7 @@ export default function Footer() {
 
           {/* ---------- Order by phone ---------- */}
           <div>
-            <h2 className="text-[0.8125rem] sm:text-[0.75rem] font-bold uppercase tracking-[0.16em] text-white">
+            <h2 className="text-[0.8125rem] font-bold uppercase tracking-[0.16em] text-white sm:text-[0.75rem]">
               Order by phone
             </h2>
             <a
@@ -96,9 +95,31 @@ export default function Footer() {
           </div>
         </div>
 
+        {/* ---------- Policies ---------- */}
+        <nav aria-labelledby="footer-legal" className="mt-12 border-t border-white/10 pt-8">
+          <h2
+            id="footer-legal"
+            className="text-[0.8125rem] font-bold uppercase tracking-[0.16em] text-white sm:text-[0.75rem]"
+          >
+            Policies
+          </h2>
+          <ul className="mt-5 grid gap-x-8 gap-y-1 sm:grid-cols-2 lg:grid-cols-4">
+            {LEGAL_PAGES.map((page) => (
+              <li key={page.slug}>
+                <Link
+                  href={`/${page.slug}`}
+                  className="inline-block py-1.5 text-[0.875rem] text-white/60 transition-colors duration-200 hover:text-sonic-bright"
+                >
+                  {page.navLabel}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
         {/* ---------- Fine print ---------- */}
-        <div className="mt-12 border-t border-white/10 pt-8">
-          <div className="space-y-3.5 text-[0.8125rem] sm:text-[0.75rem] leading-relaxed text-white/45">
+        <div className="mt-10 border-t border-white/10 pt-8">
+          <div className="space-y-3.5 text-[0.8125rem] leading-relaxed text-white/45 sm:text-[0.75rem]">
             <p>
               {SITE.disclosure} Sonic and the Sonic logo are trademarks of their
               respective owner. All other trademarks are the property of their respective
@@ -128,22 +149,10 @@ export default function Footer() {
         </div>
 
         {/* ---------- Bottom bar ---------- */}
-        <div className="mt-8 flex flex-col gap-5 border-t border-white/10 pt-7 lg:flex-row lg:items-center lg:justify-between">
+        <div className="mt-8 border-t border-white/10 pt-7">
           <p className="text-[0.8125rem] text-white/50">
             &copy; {year} {SITE.disclosure}
           </p>
-          <ul className="flex flex-wrap items-center gap-x-6 gap-y-2.5">
-            {FOOTER_LEGAL.map((link) => (
-              <li key={link.label}>
-                <a
-                  href={link.href}
-                  className="inline-block py-1 text-[0.8125rem] text-white/50 transition-colors duration-200 hover:text-sonic-bright"
-                >
-                  {link.label}
-                </a>
-              </li>
-            ))}
-          </ul>
         </div>
       </div>
     </footer>

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { NAV_LINKS, SITE } from '@/lib/content';
 import SonicWordmark from './SonicWordmark';
 import { PhoneIcon } from './CallButton';
@@ -18,19 +19,19 @@ export default function Header() {
 
       <header className="border-b border-mist-line bg-white/95 backdrop-blur-md supports-[backdrop-filter]:bg-white/88">
         <div className="mx-auto flex h-[68px] w-full max-w-6xl items-center justify-between gap-3 px-5 sm:px-6 lg:px-8">
-          <a href="#hero" aria-label={`${SITE.brandName} — ${SITE.retailerLabel}`}>
+          <Link href="/" aria-label={`${SITE.brandName} — ${SITE.retailerLabel}`}>
             <SonicWordmark />
-          </a>
+          </Link>
 
           <nav aria-label="Primary" className="hidden items-center gap-9 md:flex">
             {NAV_LINKS.map((link) => (
-              <a
+              <Link
                 key={link.href}
                 href={link.href}
                 className="relative text-[0.9375rem] font-semibold text-graphite-deep transition-colors duration-200 hover:text-brand"
               >
                 {link.label}
-              </a>
+              </Link>
             ))}
           </nav>
 

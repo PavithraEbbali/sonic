@@ -446,31 +446,23 @@ export const FAQS: FaqItem[] = [
  * ========================================================================== */
 
 export const NAV_LINKS: { label: string; href: string }[] = [
-  { label: 'Plans', href: '#plans' },
-  { label: 'Why Sonic', href: '#why-sonic' },
-  { label: 'FAQ', href: '#faq' },
+  { label: 'Plans', href: '/#plans' },
+  { label: 'Why Sonic', href: '/#why-sonic' },
+  { label: 'FAQ', href: '/#faq' },
 ];
 
 export const FOOTER_SHOP: { label: string; href: string }[] = [
-  { label: 'Fiber Internet', href: '#fiber' },
-  { label: 'Internet + Home Phone', href: '#bundle' },
-  { label: 'Home Phone', href: '#phone' },
-  { label: 'Check availability', href: '#hero' },
+  { label: 'Fiber Internet', href: '/#fiber' },
+  { label: 'Internet + Home Phone', href: '/#bundle' },
+  { label: 'Home Phone', href: '/#phone' },
+  { label: 'Check availability', href: '/#hero' },
 ];
 
 export const FOOTER_LEARN: { label: string; href: string }[] = [
-  { label: 'Why Sonic', href: '#why-sonic' },
-  { label: 'How it works', href: '#how-it-works' },
-  { label: 'Plan details and fees', href: '#fine-print' },
-  { label: 'Frequently asked questions', href: '#faq' },
-];
-
-export const FOOTER_LEGAL: { label: string; href: string }[] = [
-  { label: 'Privacy Policy', href: '#' },
-  { label: 'Terms & Conditions', href: '#' },
-  { label: 'Disclaimer', href: '#' },
-  { label: 'TCPA Consent', href: '#' },
-  { label: 'Cookie Policy', href: '#' },
+  { label: 'Why Sonic', href: '/#why-sonic' },
+  { label: 'How it works', href: '/#how-it-works' },
+  { label: 'Plan details and fees', href: '/#fine-print' },
+  { label: 'Frequently asked questions', href: '/#faq' },
 ];
 
 export const FOOTER_HOURS: string[] = ['Mon–Fri, 8AM–9PM ET', 'Sat–Sun, 9AM–6PM ET'];

@@ -746,3 +746,67 @@ Result: **zero horizontal overflow at 320, 390, 414 and 768px.**
 **Note:** the GitHub repository is **public**. Fine for this code — it holds no
 secrets — but worth a deliberate decision, since it includes the full pricing
 audit and compliance notes in this file.
+
+---
+
+## [1.1.0] — Eight policy pages
+
+### Reference check first
+Both reference sites were opened rather than assumed. bestfiberinternet.us runs
+five policy documents (`/privacy-policy/`, `/terms-and-conditions/`,
+`/disclaimer/`, `/tcpa-consent/`, `/cookie-policy/`); kineticfiber.us runs only
+`/privacy-policy`. Their privacy and TCPA pages were read for structure — H1,
+then numbered H2 sections, an effective date at the head, contact block at the
+foot — which is the shape adopted here. **No text was copied**; all eight
+documents are written for this retailer.
+
+### Architecture
+- `lib/legal.ts` holds the documents as data (`LEGAL_PAGES`), matching the
+  content-as-data pattern already used for plans.
+- `app/(policies)/[slug]/page.tsx` maps over them. The `(policies)` route group
+  keeps URLs at the root — `/privacy-policy`, not `/legal/privacy-policy`.
+- `dynamicParams = false` so a slug outside the list 404s instead of rendering
+  on demand; without it, a root-level `[slug]` would swallow every missing URL.
+  Confirmed: `/not-a-real-page` returns 404, `/` still returns 200.
+- `components/LegalDocument.tsx` renders one document: navy masthead, then a
+  measure-limited column. Supports `**bold**` and nothing else.
+- Footer policy list is generated from `LEGAL_PAGES`, so adding a ninth document
+  lists it automatically.
+
+### The eight
+`privacy-policy` (Privacy & Data Protection) · `disclaimer` · `cookies-policy` ·
+`tcpa-policy` · `trademarks` · `marketing-policy` · `service-fulfillment` ·
+`pci-dss`. All eight prerender as static HTML — 12 routes total.
+
+Two are worth noting because they are written against how this build actually
+works, not from a template:
+- **PCI DSS** states plainly that no part of the site collects, processes or
+  stores card data — there is no checkout — and lists what representatives will
+  never ask for. That is accurate: the site has no payment path at all.
+- **Service Fulfillment** separates our role (verify address, explain rates,
+  submit order) from the operator's (provision, install, bill), without routing
+  anyone to carrier support, which the standing rules forbid.
+
+### Navigation fix this forced
+Every in-page anchor was bare (`#plans`), which does nothing from a policy page.
+All are now root-relative (`/#plans`), and `SmoothScroll` compares
+`anchor.pathname` against `window.location.pathname` so it only eases the scroll
+when the link targets the current page — otherwise the browser navigates and
+lands on the hash. Internal links converted to `next/link` (ESLint
+`no-html-link-for-pages` caught two `<a>` elements); `tel:` links stay as `<a>`.
+
+### Placeholders — must be replaced before launch
+`LEGAL` in `lib/legal.ts`: `entityName`, `address`, `email`, `siteName`,
+`effectiveDate`. They render visibly as `[Retailer legal entity name]` etc. so
+they cannot ship unnoticed. A policy needs an effective date to be enforceable,
+which is why one exists here despite the site's no-date-stamp rule — that rule
+targets pricing claims.
+
+**These documents have not been reviewed by a lawyer.** They are conventional,
+carefully written and matched to this build, but they are not legal advice.
+
+### QA
+- `tsc`, `eslint`, `next build` clean. 12 routes, all static.
+- All 8 policy URLs return 200 with correct titles; unknown slugs 404.
+- No horizontal overflow on a policy page at 320px; 11 sections render.
+- Footer lists all 8; `tel:` links still carry `data-call-cta`.
