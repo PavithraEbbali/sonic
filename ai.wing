@@ -689,3 +689,60 @@ card radius 18px with `overflow: hidden`.
 
 **Still not visually confirmed** — the Browser pane returned blank captures
 throughout.
+
+---
+
+## [1.0.0] — Mobile responsiveness pass, GitHub, Vercel readiness
+
+### Mobile audit and fixes
+
+Audited by walking the rendered DOM at 320 / 390 / 414 / 768px rather than by
+eye. Two real classes of problem, neither visible from a desktop view:
+
+**Type too small.** 28 elements rendered below 12px — uppercase eyebrow labels
+at 11px and the wordmark qualifier at 9px. Applied a mobile-first type floor
+across all eight affected components: every small size now carries a phone
+value with the refined desktop size restored from `sm:` upward
+(`text-[0.75rem] sm:text-[0.6875rem]` and so on). Down to 4 elements below 12px,
+both decorative uppercase badges at 10–11px.
+
+**Tap targets too small.** 18 interactive elements under 40px tall, worst of
+them the ZIP submit button at 38px and — more seriously — the hero's only call
+path, a text link just **16px tall**. Field and submit now sit at ~46px under
+`sm`; the phone link is 32px; footer link rows went from 19px to 31px. All clear
+the WCAG 2.2 AA 24px minimum, and the primary actions clear 44px.
+
+**Animation on touch.** Lenis now passes `syncTouch: false` explicitly. Touch
+scrolling stays native, which preserves momentum, rubber-band and the
+browser-chrome hide/show phone users expect; anchor links still ease because
+those route through `lenis.scrollTo()`. Entrance reveals were already gated
+behind `@media (scripting: enabled)` and disabled under `prefers-reduced-motion`.
+
+**Touch polish.** `-webkit-tap-highlight-color: transparent` on interactive
+elements, and a `max-width: 100%` floor on `img`/`svg`/`video`.
+
+Result: **zero horizontal overflow at 320, 390, 414 and 768px.**
+
+### Repository
+
+- `.gitattributes` added — `* text=auto eol=lf` plus binary markers for images.
+  Authoring is on Windows; Vercel builds on Linux, so line endings are pinned
+  rather than left to platform default.
+- `/.claude/` added to `.gitignore`; local tooling config is not project code.
+- `package.json`: name set to `sonic-authorized-retailer`, `engines.node >=20.9.0`.
+- README rewritten: local setup, Vercel steps, how to edit `lib/content.ts`,
+  the compliance rules baked into the build, and the placeholder-phone warning.
+- Committed and pushed to `github.com/PavithraEbbali/sonic` (`main`, 42 files).
+  Verified local HEAD matches `origin/main`.
+
+### Vercel readiness
+- `next.config.ts` left at defaults — no `output: 'export'`, so `next/image`
+  optimization stays available on Vercel.
+- No environment variables required.
+- Both routes prerender as static content.
+- Photography ships as optimized JPEG (843 KB total) and is re-encoded again to
+  AVIF/WebP per breakpoint by the platform image optimizer.
+
+**Note:** the GitHub repository is **public**. Fine for this code — it holds no
+secrets — but worth a deliberate decision, since it includes the full pricing
+audit and compliance notes in this file.
