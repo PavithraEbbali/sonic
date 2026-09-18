@@ -1,0 +1,691 @@
+# ai.wing — Change Log & Architecture Record
+
+Running record of structural changes, feature additions and architectural
+decisions for the Sonic Authorized Retailer landing site. Newest entries at the
+bottom. Each entry should be specific enough to reverse.
+
+---
+
+## [0.1.0] — Initial build
+
+### Stack
+- Next.js 16.3.5 (App Router) · React 19.2.8 · TypeScript 5 · Tailwind CSS v4
+- `lenis` for smooth scrolling. No other runtime dependencies.
+- Strict frontend build: no API routes, no database, no server actions.
+
+### Architectural decisions
+
+**1. `lib/content.ts` is the single source of truth.**
+Every dollar amount, speed, fee, promotional qualifier, feature bullet, FAQ
+answer and legal disclosure lives in this one module. No `.tsx` file contains a
+hard-coded price, speed or plan name. Changing a rate there cascades to the hero
+price anchor, every plan card, the fine-print comparison table and the footer
+disclosures with zero layout edits.
+
+Derived helpers keep layout files data-free:
+- `plansFor(line)` — plans on one service line
+- `activeServiceLines()` — lines that have plans, in canonical order
+- `leadPlan()` — the hero price anchor (flagged popular fiber plan)
+- `formatSpeed()` / `speedLabel()` — 10000 → "10 Gig", symmetry-aware
+- `hasPrice()` / `ctaLabel()` — drives "Call to order" vs "Call for pricing"
+- `finePrintTable()` — builds the comparison grid rows from `PLANS`
+
+**2. Service lines render by data presence, not by hand.**
+`SERVICE_LINE_ORDER` fixes the merchandising order as
+`fiber → cable → bundle → tv → mobile → phone`. `ServiceSections.tsx` maps over
+`activeServiceLines()`, which filters out any line with zero plans. Adding a
+cable plan to `PLANS` would make a cable section appear in the correct slot with
+no component change; removing the last plan on a line deletes its section.
+
+**3. `<PriceLockup plan={plan} />` is the only price presentation.**
+A flex row of raised dollar sign, dominant integer and muted cents, with the
+promotional qualifier beneath. Two sizes (`card` = 2.5rem integer, `hero` =
+2.75–3.5rem responsive) and two tones (`light`, `dark`). When a plan has no
+`price`, it renders "Call for pricing" instead — the same condition that flips
+the card's CTA wording. Includes an `sr-only` spoken price so screen readers do
+not read the split lockup as three fragments.
+
+**4. `<CallButton />` owns every telephone CTA.**
+Centralises the `tel:` href and guarantees the `data-call-cta` tracking
+attribute on every call action. The two inline `tel:` links that are not buttons
+(hero subline, footer number) and the header/ZIP-result buttons also carry
+`data-call-cta`.
+
+### Content audit against sonic.com
+
+Plans, rates and fees were taken from Sonic's own site and availability results:
+
+| Service line | Status | Source finding |
+|---|---|---|
+| Fiber | **Included** | 10 Gigabit fiber, $49.99/mo intro for 12 mos., $59.99/mo after; free install; symmetrical; unlimited data; no contract. Pre-order tier for neighborhoods under construction (no published rate → "Call for pricing"). |
+| Cable | **Omitted** | Sonic sells fiber-to-the-home only; cable appears on its site solely as a competitor technology. |
+| Bundle | **Included** | Sonic Fusion Fiber 1 Gig, $49.99/mo intro / $59.99/mo after, 940 Mbps typical each way, ~3 ms latency, includes one home phone line. |
+| TV | **Omitted** | Sonic's own TV page states it does not sell streaming devices or services; it recommends third-party Roku + YouTube TV. Not a native service, so the section does not exist. |
+| Mobile | **Omitted** | No consumer mobile service. "Sonic Mobile Communicator" is a softphone app for an existing home phone line, not mobile service — it is listed as a Fusion feature instead. |
+| Phone | **Included** | Sonic Home Phone / Sonic Voice, $10/mo added to Fusion fiber; unlimited nationwide calling plus 70 countries; Nomorobo spam blocking; number transfer; ATA provided. |
+
+Equipment (optional, never required): Sonic WiFi 7 $5/mo · WiFi Pro 7 $10/mo ·
+WiFi Max 7 $20/mo. Universal terms: $0 install, $0 one-time fees, $0 early
+termination, $0/GB overage.
+
+### Compliance constraints enforced
+- Persistent, non-dismissable disclosure bar: "Independent Authorized Retailer
+  of Sonic." Sticky with the header, so it stays on screen for the whole scroll.
+- Hero keeps **both** the ZIP availability checker and a call button.
+- Body CTAs read "Call to order", or "Call for pricing" when a plan has no
+  published rate. Raw phone numbers appear only in the header and footer.
+- No carrier support routing — no instruction to contact Sonic for billing,
+  outages or support anywhere on the page.
+- No empty sections, no "call to ask" placeholder cards for services Sonic does
+  not offer.
+- No Broadband Facts label links. No "pricing observed" date stamps. No
+  "is this the official site?" FAQ. No competitor bashing and no
+  self-deprecating copy about being an ordering channel.
+- ZIP checker makes no availability claim: a valid ZIP reveals a next step,
+  since serviceability is decided at the street address.
+
+### Design notes
+- Palette: Sonic Vibrant Blue `#00A4E4` (with `#0092CC` hover and `#007BAD` deep
+  for text-on-light contrast), dark slate `#0B131D` surfaces, white, and a
+  neutral grey ramp. Defined as Tailwind v4 `@theme` tokens in `app/globals.css`.
+  > **Superseded in [0.2.0].** `#00A4E4` came from the brief and is not the blue
+  > Sonic actually ships. The palette was re-derived by sampling screenshots of
+  > sonic.com — see [0.2.0] for the measured values now in use.
+- Typography: Inter via `next/font`, tight tracking on headings.
+- Motion: Lenis smooth scroll with anchor interception; one-shot
+  `IntersectionObserver` entrance reveals that unobserve after firing; hover
+  lifts on cards. No WebGL, no 3D backgrounds, no animated diagrams. Everything
+  is disabled under `prefers-reduced-motion`.
+- FAQ uses native `<details>`/`<summary>` so it works without JavaScript.
+- `overflow-x: clip` on `html`/`body` plus `min-width: 0` on all elements; the
+  fine-print table is swapped for stacked cards below `lg` rather than being put
+  in a horizontal scroller, which keeps 320px free of horizontal overflow.
+
+### Known placeholder
+`SITE.phoneDisplay` / `SITE.phoneHref` in `lib/content.ts` hold
+`(888) 555-0123`. The 555-01xx range is reserved and never connects. **Replace
+with the retailer's own tracked sales number before launch** — it must not be a
+carrier support line.
+
+---
+
+## [0.1.1] — Reveal robustness fix
+
+**Problem found during QA.** Every `.reveal` element started at `opacity: 0` in
+CSS, unconditionally. All 35 of them stayed invisible until the
+`IntersectionObserver` fired, which meant a JavaScript failure, a disabled-JS
+visitor or a blocked bundle would have rendered a page with a hero and nothing
+below it — the worst possible failure mode for a conversion landing page.
+
+**Fix.** The hidden starting state now lives inside `@media (scripting: enabled)`.
+Where scripting is unavailable — JavaScript disabled, crawlers, reader mode,
+text browsers — the query does not match, no rule applies, and every section
+renders at full opacity.
+
+*First attempt, reverted:* gating on an `html.reveal-ready` class added by an
+inline bootstrap script. That worked visually but produced two React errors in
+the console — "Encountered a script tag while rendering React component" and a
+hydration mismatch on `<html className>`, because the script mutated the element
+before React hydrated. The `scripting` media feature achieves the same
+progressive enhancement with no script and nothing touching the DOM pre-hydration.
+Confirmed: a freshly loaded page logs **no console errors at all**, and the
+compiled CSS contains exactly
+`@media (scripting:enabled){.reveal{opacity:0;…}.reveal[data-revealed=true]{opacity:1;…}}`
+plus the reduced-motion override, with no unscoped `.reveal{opacity:0}`.
+
+*Residual risk, accepted:* if the JS bundle fails to load entirely, `scripting`
+still reports enabled and the reveals stay hidden. That is a much narrower
+failure than JS being disabled, and the page would be non-functional anyway.
+
+Also hardened `Reveal.tsx` to reveal elements that a fast scroll or anchor jump
+has already carried above the viewport (`boundingClientRect.bottom < 0`), which
+previously left them hidden until the visitor scrolled back up.
+
+## [0.1.2] — QA results
+
+- `npm run build` — clean; both routes prerendered as static content.
+- `npx tsc --noEmit` — no errors. `npm run lint` — no errors, no warnings.
+- **Cascade proof:** temporarily patched only `fiber-10-gig` in `lib/content.ts`
+  to `$31.49 / then $41.99`. The hero lockup, the fiber plan card, the card's
+  promo line, the fine-print table's "Monthly rate" and "Promotional terms"
+  cells and the screen-reader price string all changed together, while the
+  untouched Fusion plan stayed at `$49.99 / $59.99`. Reverted afterwards.
+- **No hardcoded money in layout:** a scan of `components/` and `app/` for
+  `$<digit>` returns nothing.
+- **Horizontal overflow:** none at 320, 375, 768, 1024 or 1440px
+  (`scrollWidth === clientWidth`, zero elements crossing the viewport edge).
+- **Call CTAs:** 11 `tel:` links in the live DOM, all pointing at the single
+  `SITE.phoneHref`, all carrying `data-call-cta` — a 1:1 ratio in the served
+  HTML too.
+- **Forbidden-content scan returned zero hits** for: "broadband facts",
+  "pricing observed", "official site", "contact sonic", "call sonic", "sonic
+  directly", "ordering channel", "not the network operator", "county lines",
+  "call to ask". No outbound links to `sonic.com` or `fcc.gov`.
+- **Rendered section order:** `hero → fiber → bundle → phone → fine-print →
+  how-it-works → why-sonic → faq`. Cable, TV and mobile are absent, as intended.
+- **CTA wording in the DOM:** "Call to order" on every priced plan, "Call for
+  pricing" on Sonic Fiber Pre-Order. Raw phone numbers appear only in the
+  header, the footer and the ZIP result panel.
+- ZIP checker: empty submit shows "Enter a 5-digit ZIP code."; a valid ZIP
+  reveals the next-step panel without asserting availability.
+- One `<h1>` on the page. No console errors.
+
+---
+
+## [0.2.0] — Brand-accurate palette, copy pass, hero rebuild
+
+### 1. Palette re-derived from sonic.com screenshots
+
+The original brief specified `#00A4E4`. That is **not** the blue Sonic ships.
+Rather than eyeball it, the supplied screenshots were decoded with Pillow and
+sampled per UI element (dominant colour of a cropped region, plus a saturation
+filtered histogram of the whole frame). Results, now the site's tokens:
+
+| Token | Hex | Sampled from |
+|---|---|---|
+| `--color-sonic` | `#26ABE2` | "Built Different" headline, logo period, arc motif |
+| `--color-brand` | `#2378C6` | navbar CHECK AVAILABILITY button |
+| `--color-indigo` | `#2B3374` | hero availability-form button |
+| `--color-navy` | `#1B214A` | comparison band, "There's No Competition" |
+| `--color-navy-deep` | `#10132B` | deepest stop of the same band |
+| `--color-band-from/to` | `#295B98` → `#287FB9` | the "Top rated" gradient band |
+
+Contrast was checked before assigning roles: `#2378C6` on white is 4.59:1, so it
+carries eyebrows, links and body-weight text. `#26ABE2` on white is only 2.62:1,
+so cyan is restricted to dark surfaces (5.87:1 on `#1B214A`), icons and rules —
+never body text on white.
+
+Applied colours were then verified in the live DOM via `getComputedStyle`, not
+by eye: disclosure bar / hero / footer `#10132B`, how-it-works + table header
+`#1B214A`, header CTA `#2378C6`, ZIP submit `#2B3374`, hero accent word and
+eyebrow rules `#26ABE2`, CTA band `#2B3374 → #295B98 → #287FB9`.
+
+### 2. Hero rebuilt
+
+The previous hero was a generic dark-panel-plus-card template. Replaced with a
+composition drawn from Sonic's own:
+- Layered navy gradient stage (`#10132B → #1B214A → #262D5C`) with a cyan bloom.
+- **`<ArcMotif />`** — Sonic's signature concentric arcs sweeping in from the
+  top-right. 19 static `<circle>` strokes with computed radii and opacities;
+  rendered once at build time. No canvas, no WebGL, no animation, nothing on the
+  client.
+- Legibility scrim over the arcs: a heavy vertical wash below `lg` (where copy
+  spans full width) and a left-weighted horizontal wash at `lg`+, mirroring the
+  dark overlay Sonic puts on the left of its hero photo. Added after the first
+  mobile render showed arcs cutting through the subline.
+- Headline carries a cyan accent phrase, as "Built Different" does, and uses
+  `text-wrap: balance` to stop a ragged four-line break at desktop width.
+- Featured-plan card restyled as glass with a cyan hairline along its top edge.
+- **Docked white availability bar** across the foot of the hero, echoing the
+  white address form Sonic docks over its hero. It holds the ZIP checker *and*
+  the call CTA side by side, so the hero still carries both entry points.
+
+### 3. Copy pass — formal register
+
+| Location | Before | After |
+|---|---|---|
+| H1 | "Lightning-fast fiber internet, with pricing you can read." | "Fiber internet built for speed, priced with complete transparency." |
+| Fine print | "Every cost, in one place" | "Complete pricing and fee disclosure" |
+| Fine print sub | "…printed in full rather than buried in a footnote." | "…documented in full — every figure available to review before you place an order." |
+| How it works | "Three steps from here to installed" | "Three steps to installation" |
+| Why Sonic | "Built on its own fiber, and priced that way" | "A network built and operated end to end" |
+| Why Sonic sub | "Owning the network end to end is what makes … possible at the same time." | "Owning the infrastructure end to end is what allows Sonic to deliver symmetrical speeds, unlimited data and predictable monthly pricing at the same time." |
+
+Also caught in the same pass, unprompted but in the same casual register:
+"Fiber the whole way" → "End-to-end fiber infrastructure"; "Recognized for
+service" → "Independently recognized service"; "Unlimited data, every plan" →
+"Unlimited data on every plan"; **"Pricing you can read" → "Transparent,
+predictable pricing"** (this was the exact phrase rejected in the H1, still
+sitting in a Why-Sonic card); "Pick your plan" → "Select your plan"; "Get
+installed free" → "Professional installation"; "Questions worth asking first" →
+"Frequently asked questions". All step and feature bodies were reworded to the
+same register.
+
+### 4. Structural additions
+- New `components/SectionHeading.tsx` — one shared header (cyan rule + eyebrow +
+  title + optional description, light/dark tones, left/centre align) now used by
+  every section, so typographic scale and rhythm cannot drift between them.
+- Buttons adopt Sonic's uppercase, letter-spaced CTA treatment. The underlying
+  text is still exactly "Call to order" / "Call for pricing"; the casing is a CSS
+  `text-transform`, matching Sonic's own "CHECK AVAILABILITY" buttons.
+- Wordmark reworked to Sonic's own form: heavy uppercase "SONIC" with a cyan
+  period, retailer qualifier beneath.
+- Section rhythm for contrast: navy hero → white fiber → tinted bundle → white
+  phone → white fine print → **navy how-it-works** → white why-sonic →
+  **gradient CTA band** → tinted FAQ → navy footer.
+
+### 5. QA after redesign
+- `tsc --noEmit`, `eslint`, `next build` all clean; still fully static.
+- Zero horizontal overflow at 320, 375, 768, 1024, 1600px
+  (`scrollWidth === clientWidth` at every width).
+- 10 `tel:` links, 10 carrying `data-call-cta`, all on the single
+  `SITE.phoneHref`. (Down from 11: the hero's inline phone link was absorbed
+  into the docked availability bar.)
+- Forbidden-content scan still returns zero hits; section order unchanged at
+  `hero → fiber → bundle → phone → fine-print → how-it-works → why-sonic → faq`.
+- No hardcoded prices in any `.tsx` — `lib/content.ts` remains the only source.
+
+---
+
+## [0.3.0] — Specification-led hero copy and a data-plate featured panel
+
+### Headline and subline rewritten (third pass)
+
+Two earlier attempts were rejected as insufficiently professional:
+1. "Lightning-fast fiber internet, with pricing you can read."
+2. "Fiber internet built for speed, priced with complete transparency."
+
+Both used the same marketing device — a clever parallel construction. The third
+pass drops the device entirely for a specification-led statement, the register a
+network operator actually writes in:
+
+> **Symmetrical fiber internet up to 10 Gigabits.**
+>
+> Sonic designs, builds and operates its own fiber-to-the-home network. Upload
+> capacity matches download on every tier, data is uncapped, and professional
+> installation is included at no charge — with no annual agreement.
+
+The speed figure is **derived**, not typed: `formatSpeedLong(leadPlan().speedDown)`
+renders "10 Gigabits", so the headline tracks `lib/content.ts` like everything
+else. New helper `formatSpeedLong()` gives the long prose form ("10 Gigabits")
+alongside the existing compact `formatSpeed()` ("10 Gig").
+
+Headline is set as two deliberate `block` spans. The second is `whitespace-nowrap`
+so "up to" can never split across the break; the first carries `text-balance`,
+which is inert once the line fits and only evens out the wrap on narrow screens.
+Sizing was chosen by measurement, not estimate: at 1440px the copy column is
+593px and the first line needs 640px at 50px type, so the `lg` size is 2.75rem
+and the grid was widened from `1.08fr_0.92fr` to `1.15fr_0.85fr`.
+
+### Featured plan panel rebuilt as a data plate
+
+The previous hero card was a generic pricing card — eyebrow, name, price, four
+feature bullets, button. Replaced by `components/HeroPlanPlate.tsx`, structured
+as a technical specification plate:
+
+- Ruled header (plan name + speed badge), then the dominant rate, then a
+  **specification table** — Download / Upload / Data / Agreement / Installation —
+  with hairline dividers and tabular numerals.
+- Cyan rail down the leading edge; translucent navy pane at `backdrop-blur-xl`.
+  **This surface is deliberately photo-ready** — it holds contrast over an image,
+  which matters because a background photograph is planned for the hero.
+- Rows come from `planSpecRows(plan)`, so the plate is data-driven like the rest.
+
+`Hero.tsx` now carries a marked **BACKGROUND IMAGE SLOT** comment naming exactly
+where the artwork layer goes; the gradient stage, both scrims and the plate blur
+are already tuned to sit over a photograph, so nothing else needs changing.
+
+### Supporting data-model work
+- Spec values shortened so they read correctly beneath a label:
+  `dataPolicy` "Unlimited, uncapped data" → "Unlimited, uncapped";
+  `contractTerm` "No contract required" → "None required";
+  `installation` "Free installation" → "Free".
+- Helpers split: `planSpeedRows()` (throughput), `planTermRows()` (commercial
+  terms), `planSpecRows()` (both). The plan-card footer now uses `planTermRows()`
+  as labelled micro-rows instead of a dot-joined sentence, which the shortened
+  values would have made unreadable ("Unlimited, uncapped · None required · Free").
+- SEO title and description moved into `SEO` in `lib/content.ts`, with the speed
+  derived — the last hardcoded spec figure in any `.tsx` is now gone.
+- `viewport.themeColor` corrected from the brief's `#00A4E4` to the sampled
+  `#26ABE2`.
+
+### Gotcha worth remembering: Turbopack CSS cache
+A newly introduced arbitrary utility (`lg:grid-cols-[1.15fr_0.85fr]`) silently
+failed to apply on the dev server — `display:grid` and `gap` from the same class
+list worked, but the column template did not, collapsing the hero to one column.
+The production build contained the correct rule
+(`.lg\:grid-cols-\[1\.15fr_0\.85fr\]{grid-template-columns:1.15fr .85fr}` inside
+`@media (min-width:64rem)`), and serving the production build rendered two
+columns at 593px/439px. The cause was a stale Turbopack cache that survived a dev
+server restart. **Fix: delete `.next` and restart** — restarting alone is not
+enough. When a brand-new arbitrary utility appears not to work, verify against a
+production build before editing the markup.
+
+### QA
+- `tsc --noEmit`, `eslint`, `next build` clean; still fully static.
+- Desktop 1440: grid resolves to `593.391px 438.594px`, headline two lines.
+- Mobile 320: no horizontal overflow (`scrollWidth === clientWidth === 320`).
+- 10 `tel:` links, 10 carrying `data-call-cta`.
+
+---
+
+## [0.3.1] — Hero availability control slimmed, duplicate call CTA removed
+
+**Requested:** drop the "Prefer to speak with someone / Call to order" block from
+the hero, and shrink the oversized availability bar.
+
+**Compliance check first.** The standing rule is that the hero must carry BOTH a
+ZIP checker and a call button. Removing the bar's CTA is safe because the hero
+still contains the "Call to order" button inside `<HeroPlanPlate>` — the rule is
+about the section, not that specific control. Verified in the DOM: the `#hero`
+subtree contains exactly one `tel:` link ("CALL TO ORDER — SONIC FIBER 10 GIG")
+and one `input[autocomplete="postal-code"]`. `Hero.tsx`'s docblock now states
+this explicitly so the call action is not removed by accident later.
+
+**Changes**
+- `ZipChecker.tsx` rebuilt as a compact control: the label sits on the dark hero
+  stage and only the field itself is a white pill (`p-2`, `py-2.5` input and
+  button). It no longer renders a persistent call button.
+- Moved out of the full-width docked bar and into the copy column, between the
+  subline and the trust chips, capped at `max-w-xl`.
+- Desktop footprint went from a full-container card (~1088px wide, tall enough
+  to hold a label, an input row and a second CTA column) to **576 × 59px**.
+  At 320px it stacks to 280 × 105px.
+- The post-check result panel is retained — it appears only after a valid ZIP is
+  entered, and restyled to sit on the dark hero rather than as a white card. Its
+  phone link keeps `data-call-cta`.
+
+**QA:** `tsc`, `eslint`, `next build` clean and still fully static. No horizontal
+overflow at 320px. Site-wide `tel:` links now 9, all 9 carrying `data-call-cta`
+(down from 10 — the removed control).
+
+---
+
+## [0.4.0] — Photography
+
+Five generated photographs supplied and integrated.
+
+### Delivered assets were reworked before use
+
+Files arrived in `public/` root at **1408×768 each, ~8 MB per file — 38.8 MB
+total**, which would have undercut the performance goal the brief opens with.
+Re-encoded to progressive JPEG at quality 82 with metadata stripped and moved to
+`public/images/`:
+
+| Asset | Before | After |
+|---|---|---|
+| hero-living-room | 7866 KB | 130 KB |
+| install-technician | 8052 KB | 210 KB |
+| fusion-kitchen | 7983 KB | 185 KB |
+| home-phone-console | 7873 KB | 134 KB |
+| household-devices | 7998 KB | 183 KB |
+| **Total** | **38.8 MB** | **843 KB (2.1%)** |
+
+Visually identical at this resolution. Originals preserved in the session
+scratchpad under `original-images/` in case a re-export is ever needed.
+
+Note: sources are 1408px wide, so a full-bleed hero on a 2560px display upscales
+slightly. Acceptable; regenerate wider if it ever matters.
+
+### Declared in lib/content.ts, not in components
+- New `ImageAsset { src, alt, position? }`.
+- `ServiceLineMeta.image?` — a service line that declares a photo renders
+  card-beside-photo. This is what finally fills the Fusion and Home Phone rows,
+  which previously left a single card stranded in white space.
+- `MEDIA` record for the hero, installation and household photographs.
+- No `.tsx` file holds an image path or alt string.
+
+### Placements
+- **Hero** — `hero-living-room.jpg` as `fill` + `priority` (it is the LCP
+  element). Layer order: photo → navy alpha tint → cyan bloom → arc motif →
+  legibility scrim.
+- **Sonic Fusion / Sonic Home Phone** — photo beside the plan card, row centred.
+- **Three steps to installation** — restructured from three cards across to
+  photo-left / steps-stacked-right, with a navy wash over the image so a bright
+  daylight photograph does not punch a hole in the dark section.
+- **Why Sonic** — `household-devices.jpg` as a 21:9 editorial band under the
+  heading, above the four cards.
+
+### Two problems found and fixed during integration
+
+**1. Navy gradient was set to `mix-blend-multiply`.** The hero photograph is
+already dark (mean luminance 57/255) and multiplying near-black navy over it
+crushed the shadows flat. Replaced with an alpha ramp — heaviest top-left behind
+the headline, lightest bottom-right so the lamp and window read through the
+plate.
+
+**2. Side photos were stretched to the plan card's height.** With `h-full`
+against a ~713px card, a 1.83:1 source became a **0.79 portrait box** and
+`object-cover` discarded **57% of the frame** — the kitchen shot cropped to a
+tight face. Fixed by giving every inset photo a fixed `aspect-[4/3]` and
+centring the row instead. Measured retention afterwards:
+
+| Frame | Ratio | Kept |
+|---|---|---|
+| Hero (fill) | 1.94 | 95% of height |
+| Fusion / Home Phone | 1.33 | 73% of width |
+| Installation | 1.33 | 73% of width |
+| Why Sonic band | 2.33 | 79% of height |
+
+Per-image `objectPosition` values were retuned for the 4:3 frame.
+
+### QA
+- `tsc`, `eslint`, `next build` clean; still fully static.
+- All five assets serve HTTP 200; the optimizer negotiates WebP
+  (hero 133 KB JPEG → **60 KB WebP** at w=1920).
+- No horizontal overflow at 320px or 1440px.
+- 9 `tel:` links, all 9 carrying `data-call-cta`.
+- Hero background is `alt=""` + `aria-hidden` (decorative — the headline carries
+  the message); the four content photographs have descriptive alt text.
+
+---
+
+## [0.5.0] — Hero rebuilt against the reference sites
+
+Two complaints: the background photograph was invisible under the overlay, and
+the featured-plan panel still read as a generic template card.
+
+### What the references actually do
+
+Opened both sites rather than guessing.
+
+**kineticfiber.us** — contained rounded hero card; copy left; headline with a
+coloured accent phrase; the price as an *inline* lockup in the copy ("fiber
+plans start at $19.99 /mo with AutoPay"); one pill call button; the photograph
+framed as a panel *inside* the card, not used as a background.
+
+**bestfiberinternet.us** — full-bleed dark hero; headline with a cyan accent on
+the second line; ZIP panel with "or call" fine print; and on the right, **three
+small stacked benefit chips** (icon + bold label + one-line detail) instead of a
+pricing card; a trust strip with checkmarks across the bottom.
+
+Neither puts a bordered pricing card in the hero. That was the problem.
+
+### Changes
+- **Overlay cut hard.** Was two stacked layers — a 135° tint peaking at 0.94
+  alpha plus a 95° scrim peaking at 0.90, compounding to ~0.99 on the left and
+  burying the photograph. Replaced with a *single* 100° wash running
+  0.90 → 0.72 → 0.40 → 0.26. The left stays dense enough to hold the headline;
+  the right drops to a quarter so the room, lamp and window read. Cyan bloom
+  reduced 0.30 → 0.18 and arc opacity 0.52 → 0.34 so neither fogs the image.
+- **`HeroPlanPlate.tsx` deleted.** The price now sits inline under a
+  "Fiber plans start at" label with the promotional qualifier beside it, and the
+  call button sits on the same row — the kineticfiber arrangement.
+- **Three glass highlight chips** replace the plate, per bestfiberinternet.
+  Translucent (`bg-white/[0.09]`, `backdrop-blur-md`) specifically so the
+  photograph stays visible through them. Content comes from a new
+  `heroHighlights()` helper derived from the lead plan, so the speed figure
+  cannot drift from `PLANS`.
+- **Trust chips moved** from inline pills mid-column to a bordered strip across
+  the foot of the hero, matching both references.
+
+### Compliance unchanged
+The hero still carries both required entry points — verified in the DOM: one
+`tel:` link with `data-call-cta` and one `input[autocomplete="postal-code"]`
+inside `#hero`. The call button moved from the deleted plate into the copy
+column; it was not dropped.
+
+### QA
+- `tsc`, `eslint`, `next build` clean; still fully static.
+- No horizontal overflow at 375px or 1440px.
+- 9 `tel:` links site-wide, all 9 carrying `data-call-cta`.
+
+**Design note for future edits:** the hero's right-hand elements are translucent
+on purpose. If anything there becomes an opaque panel, the photograph is buried
+again and this whole change is undone.
+
+---
+
+## [0.6.0] — Hero CTA removed; photography as untinted section backgrounds
+
+### Hero "Call to order" button removed — with a caveat
+
+Requested. **This collided with the standing rule that the hero must contain
+both a ZIP checker and a call button**, because `HeroPlanPlate` (which held the
+other hero call CTA) was deleted in [0.5.0] — so removing this one would have
+left the hero with no call path at all.
+
+Resolved the way bestfiberinternet.us does it: the button is gone, and the call
+path survives as fine print under the ZIP field —
+"Free to check · No obligation · Or call (888) 555-0123" — with the number as a
+`tel:` link carrying `data-call-cta`. No second large button, rule intact.
+Verified in the DOM: `#hero` contains one `data-call-cta` link (the number
+only, no "Call to order" text) and one `input[autocomplete="postal-code"]`.
+
+If the intent was to remove the call path entirely, drop that line from
+`ZipChecker.tsx` — but it breaks the hero rule, so it should be a deliberate call.
+
+### Photography as section backgrounds, no colour overlay
+
+Contrast was measured per image before choosing a treatment, because "no
+overlay" and "readable text" pull against each other:
+
+| Image | Section | Dark type | White type |
+|---|---|---|---|
+| `household-devices` | Why Sonic | 2.4:1 ✗ | **7.4:1 ✓** |
+| `fusion-kitchen` | Fusion | **5.8:1 ✓** | 3.1:1 ✗ |
+| `home-phone-console` | Home Phone | 4.3:1 ⚠ | 3.8:1 ✗ |
+
+- **Fusion / Home Phone** — photograph full-bleed and untinted. Heading and plan
+  card sit together in a solid white panel to one side, alternating sides down
+  the page. Neither type colour is safe directly on these interiors, so the
+  content gets its own surface instead of the image getting a tint.
+- **Why Sonic** — photograph full-bleed and untinted. It is dark enough (mean 63,
+  86 behind the heading) that white type clears 7.4:1 directly on it; the four
+  feature cards stay solid white. The redundant 21:9 band image was removed.
+- **Zero gradient overlays** on all three sections, confirmed by walking the
+  rendered DOM for `aria-hidden` gradient layers: `bundle` 0, `phone` 0,
+  `why-sonic` 0.
+
+### Two problems found during the work
+
+**1. Region mean luminance is not enough.** The Why Sonic heading measured a
+safe 7.4:1 on the top-left quadrant but visibly washed out where it crossed the
+lamp — an average hides local hotspots. Because `object-cover` on a container
+wider than the source ratio ignores the X axis, the lamp could not be moved out
+from behind the heading via `objectPosition`. Fixed with a new `.on-photo`
+utility that shadows the glyphs rather than tinting the image, so the photograph
+is still exactly as supplied.
+
+**2. Full-bleed backgrounds fail on phones.** A 1.83:1 source covering a ~900px
+tall phone section crops to a near-useless vertical sliver. Below `lg` the
+photograph now renders as a framed 16:10 banner instead, and the section falls
+back to a solid colour — `bg-mist` for Fusion/Home Phone, `bg-navy` for Why
+Sonic so its white type stays legible. Confirmed: at 375px `#why-sonic`
+computes to `rgb(27,33,74)`.
+
+### QA
+- `tsc`, `eslint`, `next build` clean; still fully static.
+- No horizontal overflow at 375px or 1440px.
+- 9 `tel:` links, all 9 carrying `data-call-cta`.
+- `react-hooks/immutability` lint error caught and fixed along the way — the
+  panel-side alternation was mutating a counter during render; now derived from
+  a pre-computed list of photo-bearing line ids.
+
+---
+
+## [0.7.0] — Per-section photo treatments
+
+New `ServiceLineMeta.imagePlacement` (`'card' | 'background'`) decides how a
+line's photograph is used, so the two lines no longer share one treatment.
+
+### Internet + Home Phone — photograph moved onto the pricing card
+- Section reverts to a plain light (`bg-mist`) band; no section background, no
+  section overlay.
+- `PlanCard` gained an optional `photo` prop. With it the card flips to a dark
+  treatment: photograph fills the card, an internal scrim sits over it, and the
+  name, features, terms and price lockup all switch to their dark-tone colours.
+  The scrim is not optional — plan detail is dense small type and the kitchen
+  interior only measures 3.1:1 for white type untreated.
+- Verified: `#bundle` has no background image and 0 section overlays; its
+  `<article>` contains an `<img>` and computes to `rgb(16,19,43)`.
+
+### Home Phone — tinted background, content centred
+- Photograph stays full-bleed, now under a light vertical wash
+  (0.60 → 0.74 navy). The mid-tone interior measures 3.8:1 for white type bare;
+  the wash lifts it to roughly 7:1.
+- Heading switched to `tone="dark"` and `align="center"`; the plan card is
+  centred at `max-w-xl`.
+- Verified: `#phone` has a background image, exactly 1 overlay, centred heading
+  (`text-align: center`, white) and a card whose midpoint sits on the section
+  centre line.
+
+### Why Sonic — graded wash instead of shadowed glyphs
+The `.on-photo` text-shadow from [0.6.0] fixed the contrast number but read as
+a patch rather than a design. Replaced with a proper 115° navy gradient
+(0.88 → 0.76 → 0.60) across the photograph: it gives the heading a consistent
+field, neutralises the lamp hotspot that the region average had hidden, and
+still lets the room show on the right. The `.on-photo` utility was deleted from
+`globals.css` rather than left as dead CSS.
+
+### QA
+- `tsc`, `eslint`, `next build` clean; still fully static.
+- No horizontal overflow at 1440px.
+- 9 `tel:` links, all 9 carrying `data-call-cta`.
+
+**Not visually confirmed.** The Browser pane stopped painting for the last part
+of this session (screenshot timeouts — the app window was behind another
+window), so these three sections were verified by measuring the rendered DOM,
+not by eye. Worth a look before shipping.
+
+---
+
+## [0.7.1] — Fusion photograph becomes a card banner, not a card background
+
+`imagePlacement: 'card'` now means a banner across the top of the plan card
+rather than a full-bleed card background.
+
+**Why this is simpler than what it replaced.** The background version needed a
+heavy internal scrim (the kitchen interior measures 3.1:1 for white type) and a
+whole parallel dark colour scheme threaded through every element of the card —
+heading, tagline, speed pill, price lockup tone, feature list, term rows,
+equipment note and CTA variant. With the photograph banded across the top, type
+sits *below* the image instead of on it, so:
+
+- the scrim is gone entirely,
+- the card returns to its standard white treatment, and
+- every `onPhoto ? dark : light` conditional was deleted from `PlanCard`.
+
+Banner is `aspect-[16/9]`, near-native for the 1.83:1 source, with a hairline
+bottom border separating it from the card content. The gradient rail stays
+pinned at the very top edge, above the image.
+
+Verified in the rendered DOM: banner box 672×378 (ratio 1.78) sitting flush at
+the card's top edge, card background `rgb(255,255,255)`, heading back to
+`rgb(30,39,64)`, **0 gradient scrims inside the card**, and `#bundle` carrying no
+section background image.
+
+Home Phone (`imagePlacement: 'background'`) is untouched — still a tinted
+full-bleed background with centred heading and card.
+
+### QA
+- `tsc`, `eslint`, `next build` clean; still fully static.
+- No horizontal overflow at 1440px.
+
+**Still not visually confirmed** — the Browser pane continued returning blank or
+timed-out captures for the whole of this change.
+
+---
+
+## [0.7.2] — Fusion card banner matched to the supplied reference
+
+A screenshot of the target pattern was supplied. Two differences from [0.7.1]:
+
+- **Banner proportion.** The reference banner measures roughly 2.3:1; ours was
+  `aspect-[16/9]` (1.78). Changed to `aspect-[21/9]` (2.33) — 672×288 at desktop
+  instead of 672×378. Keeps 79% of the 1.83:1 source height.
+- **Bottom edge.** The reference dissolves the photograph into the card surface;
+  ours ended on a hairline `border-b`. Replaced with an 80px white gradient
+  (transparent → 0.72 → solid) pinned to the bottom of the banner, and the
+  border removed, so the image reads as part of the card rather than a plate
+  stuck on top of it.
+
+Rounded top corners come from the card's existing `overflow: hidden` +
+`rounded-[18px]`, so the banner inherits them without extra rules.
+
+Verified in the rendered DOM: banner 672×288 (2.33), flush with the card top,
+80px fade anchored to the banner's bottom edge, `border-bottom-width: 0px`,
+card radius 18px with `overflow: hidden`.
+
+**Still not visually confirmed** — the Browser pane returned blank captures
+throughout.

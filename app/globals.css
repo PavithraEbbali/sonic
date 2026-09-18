@@ -1,26 +1,143 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ==========================================================================
+   SONIC BRAND TOKENS
+   Every value below was sampled directly from screenshots of sonic.com
+   (see ai.wing for the extraction method and per-element source).
+   ========================================================================== */
+
+@theme {
+  /* Brand cyan — "Built Different", the logo period, the arc motif.
+     High contrast on navy (5.9:1); decorative/accent only on white. */
+  --color-sonic: #26abe2;
+  --color-sonic-bright: #4fc2ef;
+  --color-sonic-glow: #27aae1;
+
+  /* Primary action blue — the navbar CHECK AVAILABILITY button.
+     4.6:1 on white, so it is safe for body-weight text and links. */
+  --color-brand: #2378c6;
+  --color-brand-hover: #1c66ac;
+
+  /* Deep indigo — the hero availability-form button. */
+  --color-indigo: #2b3374;
+  --color-indigo-hover: #222a5e;
+
+  /* Navy surfaces — comparison band and "There's No Competition". */
+  --color-navy: #1b214a;
+  --color-navy-deep: #10132b;
+  --color-navy-soft: #262d5c;
+
+  /* The vibrant "Top rated" band gradient. */
+  --color-band-from: #295b98;
+  --color-band-to: #287fb9;
+
+  /* Neutrals */
+  --color-mist: #f4f7fb;
+  --color-mist-line: #e2e9f2;
+  --color-graphite: #56657a;
+  --color-graphite-deep: #1e2740;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ==========================================================================
+   BASE
+   ========================================================================== */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  /* `clip` rather than `hidden` so position: sticky keeps working. */
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #ffffff;
+  color: var(--color-graphite-deep);
+  font-family: var(--font-sans);
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  min-width: 0;
+}
+
+/* Touch polish: no grey flash on tap, and media can never exceed its column. */
+a,
+button,
+summary,
+input {
+  -webkit-tap-highlight-color: transparent;
+}
+
+img,
+svg,
+video {
+  max-width: 100%;
+}
+
+/* Anchor targets clear the sticky header without JS. */
+[id] {
+  scroll-margin-top: 108px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-sonic);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Lenis owns scrolling; disable native smooth scroll to avoid fighting it. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+/* ==========================================================================
+   ENTRANCE REVEAL — one-shot, subtle
+   --------------------------------------------------------------------------
+   Progressive enhancement: the hidden starting state applies only where
+   scripting exists to undo it. With JavaScript unavailable the query never
+   matches, so every section renders at full opacity rather than a blank page.
+   ========================================================================== */
+
+@media (scripting: enabled) {
+  .reveal {
+    opacity: 0;
+    transform: translateY(16px);
+    transition:
+      opacity 0.6s cubic-bezier(0.22, 0.61, 0.36, 1),
+      transform 0.6s cubic-bezier(0.22, 0.61, 0.36, 1);
+    will-change: opacity, transform;
+  }
+
+  .reveal[data-revealed="true"] {
+    opacity: 1;
+    transform: none;
+    will-change: auto;
+  }
+}
+
+/* Declared after the block above so it wins on source order. */
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
